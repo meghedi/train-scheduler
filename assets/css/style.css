@@ -1,3 +1,9 @@
 .fa-times, .fa-edit, .fa-save{
     cursor: pointer;
 }
+
+@media (min-width: 576px){
+    .container{
+        max-width: 100%;    
+    }
+}

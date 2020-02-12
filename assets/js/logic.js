@@ -11,7 +11,7 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 var database = firebase.database();
 
-let index=0;
+let index = 0;
 
 var trainName = "";
 var destination = "";
@@ -19,20 +19,19 @@ var firstTrainTime = 0;
 var frequency = 0;
 var dateAdded = "";
 
-let checkTabelLength = function(){
-    if($('.table tbody tr').length < 1){
+let newTrainSchedule;
+
+let checkTabelLength = function () {
+    if ($('.table tbody tr').length < 1) {
         $('.table').css('display', 'none');
         $('#noRecord').fadeIn();
-    }else{
+    } else {
         $('#noRecord').css('display', 'none');
         $('.table').fadeIn();
     }
 }
 
-// 2. Button for adding Employees
-let submitRow = function(event){
-   event.preventDefault();
-
+let getTrainData = function () {
     // Grabs user input
     trainName = $("#train-name")
         .val()
@@ -49,13 +48,22 @@ let submitRow = function(event){
 
 
     // Creates local "temporary" object for holding employee data
-    var newTrainSchedule = {
+    newTrainSchedule = {
         trainName: trainName,
         destination: destination,
         first: firstTrainTime,
         frequency: frequency,
         dateAdded: firebase.database.ServerValue.TIMESTAMP
     };
+
+    return newTrainSchedule;
+}
+
+// 2. Button for adding Employees
+let submitRow = function (event) {
+    event.preventDefault();
+
+    getTrainData();
 
     // Uploads employee data to the database
     database.ref('/schedule/').push(newTrainSchedule);
@@ -114,7 +122,7 @@ database.ref('/schedule/').orderByChild("dateAdded").on("child_added", function 
         $(`<td id='removeSchedule' data-key='${childSnapshot.key}'>`).html("<i class='fa fa-times'></i>"),
     );
 
-    
+
 
     $("tbody").append(newRow);
     checkTabelLength();
@@ -123,45 +131,74 @@ database.ref('/schedule/').orderByChild("dateAdded").on("child_added", function 
 });
 
 
-const editRow =  function(trclass, childKey){
-     
-    let newName = database.ref('/schedule/').child(childKey).child("trainName").get();
+const editRow = function (trclass, childKey) {
 
-    $("#train-name").val(newName);
-    $("#destination").val("");
-    $("#first-train-time").val("");
-    $("#frequency").val("");
-
+    database.ref('/schedule/').child(childKey).on("value", function (snapshot) {
+        $("#train-name").val(snapshot.val().trainName);
+        $("#destination").val(snapshot.val().destination);
+        $("#first-train-time").val(moment.unix(snapshot.val().first).format("hh:mm"));
+        $("#frequency").val(snapshot.val().frequency);
+    });
 }
 
-const removeRow = function(closestTrClass, childKey){
+const removeRow = function (closestTrClass, childKey) {
     $(`.${closestTrClass}`).remove();
 
     database.ref('/schedule/').child(childKey).remove();
     checkTabelLength();
 }
 
-$(document).on('click','#removeSchedule', function(){
+$(document).on('click', '#removeSchedule', function () {
     let closestTrClass = $(this).closest('tr').attr('class');
     let childKey = $(this).attr("data-key");
     removeRow(closestTrClass, childKey);
 
 });
 
-$(document).on('click', '#editSchedule', function(){
-    $('#submitSchedule').fadeOut(5, function(){
+$(document).on('click', '#editSchedule', function () {
+    $('#submitSchedule').fadeOut(5, function () {
         $("#updateSchedule").fadeIn();
     });
 
-    console.log('here' , $(this).closest('tr').attr('class'));
+    console.log('here', $(this).closest('tr').attr('class'));
     let closestTrClass = $(this).closest('tr').attr('class');
     let childKey = $(this).attr("data-key");
     editRow(closestTrClass, childKey);
+    $('#childKey').val(childKey);
 });
 
 
 checkTabelLength();
 
 $(document).on("click", "#submitSchedule", submitRow);
-$(document).on("click", "#updateSchedule", editRow);
+$(document).on("click", "#updateSchedule", function (event) {
+    event.preventDefault();
+    let childKey = $('#childKey').val();
+    getTrainData();
+    database.ref('/schedule/').child(childKey).set(newTrainSchedule);
+
+    database.ref('/schedule/').child(childKey).on("value", function (childSnapshot) {
+        let trainName = childSnapshot.val().trainName;
+        let destination = childSnapshot.val().destination;
+        let firstTrainTime = childSnapshot.val().first;
+        let frequency = childSnapshot.val().frequency;
+        let dateAdded = childSnapshot.val().dateAdded;
+    
+        $("#train-name").val("");
+        $("#destination").val("");
+        $("#first-train-time").val("");
+        $("#frequency").val("");
+         
+
+        $(`#editSchedule[data-key='${childKey}']`).find("#newName").text("trainName");
+    
+    });
+
+});
+
+
+
+
+
+
 $(document).on("click", "#removeSchedule", removeRow);
