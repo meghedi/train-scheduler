@@ -13,13 +13,18 @@ var database = firebase.database();
 
 let index = 0;
 
-var trainName = "";
-var destination = "";
-var firstTrainTime = 0;
-var frequency = 0;
-var dateAdded = "";
+let trainName = "";
+let destination = "";
+let firstTrainTime = 0;
+let frequency = 0;
+let dateAdded = "";
+
+let nextTrain = 0;
+let nextTRainConverted = 0;
+let tMinutesTillTrain = 0;
 
 let newTrainSchedule;
+
 
 let checkTabelLength = function () {
     if ($('.table tbody tr').length < 1) {
@@ -57,6 +62,19 @@ let getTrainData = function () {
     };
 
     return newTrainSchedule;
+}
+
+let nextTrainCalculations = function(firstTrainTime, frequency){
+    let currentTime = moment();
+    let diffTime = moment().diff(moment.unix(firstTrainTime), "minutes");
+    let tRemainder = diffTime % frequency;
+    tMinutesTillTrain = frequency - tRemainder;
+    console.log("MINUTES TILL TRAIN: " + tMinutesTillTrain);
+
+    // Next Train
+     nextTrain = moment().add(tMinutesTillTrain, "minutes");
+     nextTRainConverted = moment(nextTrain).format("hh:mm");
+
 }
 
 // 2. Button for adding Employees
@@ -102,24 +120,16 @@ database.ref('/schedule/').orderByChild("dateAdded").on("child_added", function 
     console.log('added to db =' + firstTrainTime);
     console.log('added to db = ' + frequency);
 
-    let currentTime = moment();
-    let diffTime = moment().diff(moment.unix(firstTrainTime), "minutes");
-    let tRemainder = diffTime % frequency;
-    let tMinutesTillTrain = frequency - tRemainder;
-    console.log("MINUTES TILL TRAIN: " + tMinutesTillTrain);
-
-    // Next Train
-    let nextTrain = moment().add(tMinutesTillTrain, "minutes");
-    let nextTRainConverted = moment(nextTrain).format("hh:mm");
+    nextTrainCalculations(firstTrainTime, frequency);
 
     var newRow = $(`<tr class='row-${index}'>`).append(
-        $("<td id='newName'>").text(trainName),
-        $("<td id='newDestination'>").text(destination),
-        $("<td id='newFrequency'>").text(frequency),
-        $("<td>").text(nextTRainConverted),
-        $("<td>").text(tMinutesTillTrain),
-        $(`<td id='editSchedule' data-key='${childSnapshot.key}'>`).html("<i class='fa fa-edit'></i>"),
-        $(`<td id='removeSchedule' data-key='${childSnapshot.key}'>`).html("<i class='fa fa-times'></i>"),
+        $("<td class='newName'>").text(trainName),
+        $("<td class='newDestination'>").text(destination),
+        $("<td class='newFrequency'>").text(frequency),
+        $("<td class='newNextTrain'>").text(nextTRainConverted),
+        $("<td class='newMinutesTill'>").text(tMinutesTillTrain),
+        $(`<td class='editSchedule' data-key='${childSnapshot.key}'>`).html("<i class='fa fa-edit'></i>"),
+        $(`<td class='removeSchedule' data-key='${childSnapshot.key}'>`).html("<i class='fa fa-times'></i>"),
     );
 
 
@@ -148,14 +158,14 @@ const removeRow = function (closestTrClass, childKey) {
     checkTabelLength();
 }
 
-$(document).on('click', '#removeSchedule', function () {
+$(document).on('click', '.removeSchedule', function () {
     let closestTrClass = $(this).closest('tr').attr('class');
     let childKey = $(this).attr("data-key");
     removeRow(closestTrClass, childKey);
 
 });
 
-$(document).on('click', '#editSchedule', function () {
+$(document).on('click', '.editSchedule', function () {
     $('#submitSchedule').fadeOut(5, function () {
         $("#updateSchedule").fadeIn();
     });
@@ -189,16 +199,18 @@ $(document).on("click", "#updateSchedule", function (event) {
         $("#first-train-time").val("");
         $("#frequency").val("");
          
+       let editScheduleSelectedTr = $(`.editSchedule[data-key='${childKey}']`).closest('tr');
 
-        $(`#editSchedule[data-key='${childKey}']`).find("#newName").text("trainName");
+       editScheduleSelectedTr.find(".newName").eq(0).text(trainName);
+       editScheduleSelectedTr.find(".newDestination").eq(0).text(destination);
+       editScheduleSelectedTr.find(".newFrequency").eq(0).text(frequency);
+
+       nextTrainCalculations(firstTrainTime, frequency);
+       console.log(nextTRainConverted);
+       editScheduleSelectedTr.find(".newNextTrain").eq(0).text(nextTRainConverted);
+       editScheduleSelectedTr.find(".newMinutesTill").eq(0).text(tMinutesTillTrain);
     
     });
-
 });
 
-
-
-
-
-
-$(document).on("click", "#removeSchedule", removeRow);
+$(document).on("click", ".removeSchedule", removeRow);
